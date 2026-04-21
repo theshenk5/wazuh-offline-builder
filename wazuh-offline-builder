@@ -45,7 +45,7 @@ jobs:
           sudo cp "$HOME"/wazuh-install.sh /root/wazuh-install.sh
           sudo cp "$HOME"/config.yml /root/config.yml
           sudo chmod 744 /root/wazuh-install.sh
-          echo "----- /root/config.yml -----"
+          echo "----- /root/config.yml before build -----"
           sudo cat /root/config.yml
 
       - name: Build offline package bundle
@@ -54,7 +54,8 @@ jobs:
 
       - name: Show root directory after download step
         run: |
-          sudo bash -c 'ls -lah /root && echo "----- /root/config.yml -----" && cat /root/config.yml'
+          sudo bash -c 'ls -lah /root'
+          sudo bash -c 'if [ -f /root/config.yml ]; then echo "----- /root/config.yml -----"; cat /root/config.yml; else echo "/root/config.yml not present"; fi'
 
       - name: Generate install files bundle
         run: |
@@ -62,7 +63,7 @@ jobs:
           sudo bash -c 'cd /root && ./wazuh-install.sh -g'
           status=$?
           echo "wazuh-install.sh -g exit code: $status"
-          sudo ls -lh /root/wazuh-install-files.tar /root/wazuh-offline.tar.gz /root/config.yml /root/wazuh-install.sh
+          sudo bash -c 'ls -lh /root || true'
           if sudo test -f /root/wazuh-install-files.tar; then
             echo "wazuh-install-files.tar exists, continuing."
             exit 0
@@ -72,14 +73,13 @@ jobs:
       - name: Copy outputs back to runner home
         run: |
           sudo cp /root/wazuh-install.sh "$HOME"/
-          sudo cp /root/config.yml "$HOME"/
           sudo cp /root/wazuh-offline.tar.gz "$HOME"/
           sudo cp /root/wazuh-install-files.tar "$HOME"/
           sudo chown $USER:$USER \
             "$HOME"/wazuh-install.sh \
-            "$HOME"/config.yml \
             "$HOME"/wazuh-offline.tar.gz \
             "$HOME"/wazuh-install-files.tar
+          ls -lh "$HOME"/wazuh-install.sh "$HOME"/config.yml "$HOME"/wazuh-offline.tar.gz "$HOME"/wazuh-install-files.tar
 
       - name: Show generated files
         run: |
