@@ -69,7 +69,10 @@ jobs:
             exit 0
           fi
           exit $status
-
+      - name: Debug workflow state
+        run: |
+          echo "Using updated workflow"
+          grep -n "Copy outputs back to runner home" -A 10 .github/workflows/build-wazuh-offline.yml || true
       - name: Copy outputs back to runner home
         run: |
           sudo cp /root/wazuh-install.sh "$HOME"/
