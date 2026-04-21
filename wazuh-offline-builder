@@ -79,7 +79,10 @@ jobs:
             "$HOME"/wazuh-install.sh \
             "$HOME"/wazuh-offline.tar.gz \
             "$HOME"/wazuh-install-files.tar
-          ls -lh "$HOME"/wazuh-install.sh "$HOME"/config.yml "$HOME"/wazuh-offline.tar.gz "$HOME"/wazuh-install-files.tar
+          ls -lh \
+            "$HOME"/wazuh-install.sh \
+            "$HOME"/wazuh-offline.tar.gz \
+            "$HOME"/wazuh-install-files.tar
 
       - name: Show generated files
         run: |
