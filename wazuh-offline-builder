@@ -1,0 +1,101 @@
+name: Build Wazuh Offline Bundle
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Show runner info
+        run: |
+          whoami
+          uname -a
+          df -h
+          free -h
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl tar gnupg jq ca-certificates
+
+      - name: Download Wazuh install assistant
+        run: |
+          cd "$HOME"
+          curl -fL -O https://packages.wazuh.com/4.14/wazuh-install.sh
+          chmod 744 wazuh-install.sh
+          ls -l wazuh-install.sh
+
+      - name: Create all-in-one config.yml
+        run: |
+          cd "$HOME"
+          cat > config.yml <<'EOF'
+          nodes:
+            indexer:
+              - name: node-1
+                ip: "127.0.0.1"
+
+            server:
+              - name: wazuh-1
+                ip: "127.0.0.1"
+
+            dashboard:
+              - name: dashboard
+                ip: "127.0.0.1"
+          EOF
+          cat config.yml
+
+      - name: Build offline package bundle
+        run: |
+          cd "$HOME"
+          sudo bash ./wazuh-install.sh -dw deb -da amd64
+
+      - name: Generate install files bundle
+        run: |
+          cd "$HOME"
+          sudo bash ./wazuh-install.sh -g
+
+      - name: Show generated files
+        run: |
+          cd "$HOME"
+          ls -lh
+          test -f wazuh-offline.tar.gz
+          test -f wazuh-install-files.tar
+          test -f config.yml
+          test -f wazuh-install.sh
+
+      - name: Download latest vulnerability snapshot
+        run: |
+          cd "$HOME"
+          SNAPSHOT_URL="$(curl -fsSL https://cti.wazuh.com/api/v1/catalog/contexts/vd_1.0.0/consumers/vd_4.8.0 | jq -r '.data.last_snapshot_link')"
+          echo "$SNAPSHOT_URL"
+          curl -fL "$SNAPSHOT_URL" -o cves.zip
+          ls -lh cves.zip
+
+      - name: Package outputs
+        run: |
+          cd "$HOME"
+          sha256sum wazuh-install.sh config.yml wazuh-offline.tar.gz wazuh-install-files.tar cves.zip > checksums.txt
+          tar -czf wazuh-offline-output.tar.gz \
+            wazuh-install.sh \
+            config.yml \
+            wazuh-offline.tar.gz \
+            wazuh-install-files.tar \
+            cves.zip \
+            checksums.txt
+          ls -lh wazuh-offline-output.tar.gz checksums.txt
+
+      - name: Upload output artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wazuh-offline-output
+          path: ~/wazuh-offline-output.tar.gz
+
+      - name: Upload Wazuh log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wazuh-install-log
+          path: /var/log/wazuh-install.log
+          if-no-files-found: ignore
