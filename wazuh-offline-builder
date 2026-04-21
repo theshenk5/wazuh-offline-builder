@@ -23,52 +23,42 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y curl tar gnupg jq ca-certificates
 
-      - name: Download Wazuh install assistant
+      - name: Download Wazuh install assistant and official config template
         run: |
           cd "$HOME"
           curl -fL -O https://packages.wazuh.com/4.14/wazuh-install.sh
+          curl -fL -O https://packages.wazuh.com/4.14/config.yml
           chmod 744 wazuh-install.sh
-          ls -l wazuh-install.sh
+          ls -l wazuh-install.sh config.yml
 
-      - name: Create valid config and place it in /root
+      - name: Replace all-in-one placeholders in official config.yml
         run: |
           cd "$HOME"
-          cat > config.yml <<'EOF'
-          nodes:
-            indexer:
-              - name: node-1
-                ip: "127.0.0.1"
-
-            server:
-              - name: wazuh-1
-                ip: "127.0.0.1"
-
-            dashboard:
-              - name: dashboard
-                ip: "127.0.0.1"
-          EOF
+          sed -i 's#<indexer-node-ip>#127.0.0.1#g' config.yml
+          sed -i 's#<wazuh-manager-ip>#127.0.0.1#g' config.yml
+          sed -i 's#<dashboard-node-ip>#127.0.0.1#g' config.yml
+          echo "----- edited config.yml -----"
           cat config.yml
-          sudo cp config.yml /root/config.yml
-          sudo cp wazuh-install.sh /root/wazuh-install.sh
+
+      - name: Copy files into /root
+        run: |
+          sudo cp "$HOME"/wazuh-install.sh /root/wazuh-install.sh
+          sudo cp "$HOME"/config.yml /root/config.yml
           sudo chmod 744 /root/wazuh-install.sh
           echo "----- /root/config.yml -----"
           sudo cat /root/config.yml
 
       - name: Build offline package bundle
         run: |
-          cd /root
-          sudo bash ./wazuh-install.sh -dw deb -da amd64
+          sudo bash -c 'cd /root && ./wazuh-install.sh -dw deb -da amd64'
 
       - name: Show root directory after download step
         run: |
-          sudo ls -lah /root
-          echo "----- /root/config.yml after -dw -----"
-          sudo cat /root/config.yml || true
+          sudo bash -c 'ls -lah /root && echo "----- /root/config.yml -----" && cat /root/config.yml'
 
       - name: Generate install files bundle
         run: |
-          cd /root
-          sudo bash ./wazuh-install.sh -g
+          sudo bash -c 'cd /root && ./wazuh-install.sh -g'
 
       - name: Copy outputs back to runner home
         run: |
@@ -76,7 +66,11 @@ jobs:
           sudo cp /root/config.yml "$HOME"/
           sudo cp /root/wazuh-offline.tar.gz "$HOME"/
           sudo cp /root/wazuh-install-files.tar "$HOME"/
-          sudo chown $USER:$USER "$HOME"/wazuh-install.sh "$HOME"/config.yml "$HOME"/wazuh-offline.tar.gz "$HOME"/wazuh-install-files.tar
+          sudo chown $USER:$USER \
+            "$HOME"/wazuh-install.sh \
+            "$HOME"/config.yml \
+            "$HOME"/wazuh-offline.tar.gz \
+            "$HOME"/wazuh-install-files.tar
 
       - name: Show generated files
         run: |
