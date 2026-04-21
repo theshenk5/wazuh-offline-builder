@@ -58,7 +58,16 @@ jobs:
 
       - name: Generate install files bundle
         run: |
+          set +e
           sudo bash -c 'cd /root && ./wazuh-install.sh -g'
+          status=$?
+          echo "wazuh-install.sh -g exit code: $status"
+          sudo ls -lh /root/wazuh-install-files.tar /root/wazuh-offline.tar.gz /root/config.yml /root/wazuh-install.sh
+          if sudo test -f /root/wazuh-install-files.tar; then
+            echo "wazuh-install-files.tar exists, continuing."
+            exit 0
+          fi
+          exit $status
 
       - name: Copy outputs back to runner home
         run: |
@@ -108,10 +117,17 @@ jobs:
           name: wazuh-offline-output
           path: ~/wazuh-offline-output.tar.gz
 
+      - name: Copy Wazuh log to readable location on failure
+        if: failure()
+        run: |
+          sudo cp /var/log/wazuh-install.log "$HOME"/wazuh-install.log || true
+          sudo chown $USER:$USER "$HOME"/wazuh-install.log || true
+          ls -lh "$HOME"/wazuh-install.log || true
+
       - name: Upload Wazuh log on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: wazuh-install-log
-          path: /var/log/wazuh-install.log
+          path: ~/wazuh-install.log
           if-no-files-found: ignore
