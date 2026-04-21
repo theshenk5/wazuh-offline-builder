@@ -49,6 +49,10 @@ jobs:
       - name: Build offline package bundle
         run: |
           cd "$HOME"
+      - name: Generate install files bundle
+        run: |
+          cd "$HOME"
+          sudo bash wazuh-install.sh -g
           sudo bash ./wazuh-install.sh -dw deb -da amd64
 
       - name: Generate install files bundle
