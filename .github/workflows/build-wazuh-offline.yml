@@ -1,0 +1,51 @@
+name: Build Wazuh Offline Bundle
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl tar gnupg jq
+
+      - name: Download Wazuh install assistant
+        run: |
+          curl -sO https://packages.wazuh.com/4.14/wazuh-install.sh
+          chmod 744 wazuh-install.sh
+
+      - name: Build offline package bundle
+        run: |
+          sudo bash wazuh-install.sh -dw deb -da amd64
+
+      - name: Download config
+        run: |
+          curl -sO https://packages.wazuh.com/4.14/config.yml
+
+      - name: Generate install files bundle
+        run: |
+          sudo bash wazuh-install.sh -g
+
+      - name: Download latest vulnerability snapshot
+        run: |
+          SNAPSHOT_URL=$(curl -s https://cti.wazuh.com/api/v1/catalog/contexts/vd_1.0.0/consumers/vd_4.8.0 | jq -r '.data.last_snapshot_link')
+          curl -L "$SNAPSHOT_URL" -o cves.zip
+
+      - name: Package outputs
+        run: |
+          tar -czf wazuh-offline-output.tar.gz \
+            wazuh-install.sh \
+            config.yml \
+            wazuh-offline.tar.gz \
+            wazuh-install-files.tar \
+            cves.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wazuh-offline-output
+          path: wazuh-offline-output.tar.gz
