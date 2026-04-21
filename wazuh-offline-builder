@@ -3,6 +3,9 @@ name: Build Wazuh Offline Bundle
 on:
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -27,7 +30,7 @@ jobs:
           chmod 744 wazuh-install.sh
           ls -l wazuh-install.sh
 
-      - name: Create all-in-one config.yml
+      - name: Create valid config and place it in /root
         run: |
           cd "$HOME"
           cat > config.yml <<'EOF'
@@ -45,16 +48,35 @@ jobs:
                 ip: "127.0.0.1"
           EOF
           cat config.yml
+          sudo cp config.yml /root/config.yml
+          sudo cp wazuh-install.sh /root/wazuh-install.sh
+          sudo chmod 744 /root/wazuh-install.sh
+          echo "----- /root/config.yml -----"
+          sudo cat /root/config.yml
 
       - name: Build offline package bundle
         run: |
-          cd "$HOME"
+          cd /root
           sudo bash ./wazuh-install.sh -dw deb -da amd64
+
+      - name: Show root directory after download step
+        run: |
+          sudo ls -lah /root
+          echo "----- /root/config.yml after -dw -----"
+          sudo cat /root/config.yml || true
 
       - name: Generate install files bundle
         run: |
-          cd "$HOME"
+          cd /root
           sudo bash ./wazuh-install.sh -g
+
+      - name: Copy outputs back to runner home
+        run: |
+          sudo cp /root/wazuh-install.sh "$HOME"/
+          sudo cp /root/config.yml "$HOME"/
+          sudo cp /root/wazuh-offline.tar.gz "$HOME"/
+          sudo cp /root/wazuh-install-files.tar "$HOME"/
+          sudo chown $USER:$USER "$HOME"/wazuh-install.sh "$HOME"/config.yml "$HOME"/wazuh-offline.tar.gz "$HOME"/wazuh-install-files.tar
 
       - name: Show generated files
         run: |
